@@ -1,5 +1,6 @@
 #include <stdio.h>
-
+#include "vec3.h"
+#include "color.h"
 int main() {
 
     int image_width = 256;
@@ -11,15 +12,8 @@ int main() {
 
     for (int i = 0; i< image_height; i++) {
         for (int j = 0; j<image_width; j++) {
-            double r = ((double) j)/(image_width-1);
-            double g = ((double) i)/(image_height-1);
-            double b = 10.00;
-
-            int ir = (int) (255.999 * r);
-            int ig = (int) (255.999 * g);
-            int ib = (int) (255.999 * b);
-
-            fprintf(file, "%d %d %d \n", ir,ig,ib);
+            Color c = color(((double) j)/(image_width-1), ((double) i)/(image_height-1), 0);
+            write_color(file, c);
         }
     }
     fclose(file);
