@@ -45,8 +45,8 @@ static double vec3_length(const Vec3 a) {
     return sqrt(vec3_length_sq(a));
 }
 
-inline Vec3 vec3_normalize(const Vec3 a) {
+static Vec3 vec3_normalize(const Vec3 a) {
     return vec3_scale(a, 1.0/vec3_length(a));
 }
 
-#endif VEC3_H
+#endif //VEC3_H

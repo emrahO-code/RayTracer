@@ -43,4 +43,4 @@ static void write_color(FILE* f, const Color c) {
 
     fprintf(f, "%d %d %d \n", ir,ig,ib);
 }
-#endif COLOR_H
+#endif //COLOR_H
