@@ -25,7 +25,7 @@ static Color color_scale(const Color a, const double c) {
 }
 
 static Color color_negate(const Color c) {
-    return (Color){1-c.x, 1-c.y, 1-c.z};
+    return (Color){-c.x, -c.y, -c.z};
 }
 
 static Color color_lerp(const Color a, const Color b, const double c) {
@@ -33,14 +33,17 @@ static Color color_lerp(const Color a, const Color b, const double c) {
 }
 
 static void write_color(FILE* f, const Color c) {
-    double r = c.x;
-    double g = c.y;
-    double b = c.z;
-
+    double r = c.x < 0 ? 0 : c.x > 1 ? 1 : c.x;
+    double g = c.y < 0 ? 0 : c.y > 1 ? 1 : c.y;
+    double b = c.z < 0 ? 0 : c.z > 1 ? 1 : c.z;
     int ir = (int) (255.999 * r);
     int ig = (int) (255.999 * g);
     int ib = (int) (255.999 * b);
 
     fprintf(f, "%d %d %d \n", ir,ig,ib);
+}
+
+static Color vec3_to_color(Vec3 v) {
+    return (Color){v.x,v.y,v.z};
 }
 #endif //COLOR_H
