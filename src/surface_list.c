@@ -3,13 +3,13 @@
 
 #define INITIAL_CAP 8
 
-static bool surface_list_hit(const Surface *self, const Ray r,double t_min, double t_max, surface_record *rec) {
+static bool surface_list_hit(const Surface *self, const Ray r, interval t, surface_record *rec) {
     const Surface_list *list = (const Surface_list *)self;
     surface_record temp;
     bool hit_anything = false;
-    double closest = t_max;
+    double closest = t.max;
     for (int i=0; i<list->count;i++) {
-        if (list->objects[i]->hit(list->objects[i], r, t_min, closest, &temp )) {
+        if (list->objects[i]->hit(list->objects[i], r, (interval){t.min,closest}, &temp )) {
             hit_anything = true;
             closest = temp.t;
             *rec = temp;
