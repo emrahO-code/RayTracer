@@ -13,9 +13,9 @@ bool sphere_hit(const Surface *self, const Ray r, interval t, surface_record *re
     }
 
     double root = (b - sqrt(discrim))/a;
-    if (!interval_contains(t, root)) {
+    if (!interval_surrounds(t, root)) {
         root = (b + sqrt(discrim))/a;
-        if (!interval_contains(t, root)){
+        if (!interval_surrounds(t, root)){
             return false;
         }
     }

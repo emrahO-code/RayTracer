@@ -13,6 +13,19 @@ static double interval_size(const interval t) {
 static bool interval_contains(const interval t,const double x) {
     return t.min <= x && x <= t.max;
 }
+static bool interval_surrounds(const interval t,const double x) {
+    return t.min < x && x < t.max;
+}
+
+static double interval_clamp(const interval t,const double x) {
+    if (x<t.min) {
+       return t.min;
+    }
+    if (x>t.max) {
+        return t.max;
+    }
+    return x;
+}
 
 
 

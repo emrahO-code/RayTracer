@@ -2,6 +2,7 @@
 #define COLOR_H
 
 #include <stdio.h>
+#include "interval.h"
 
 typedef struct {
     double x,y,z;
@@ -33,17 +34,19 @@ static Color color_lerp(const Color a, const Color b, const double c) {
 }
 
 static void write_color(FILE* f, const Color c) {
-    double r = c.x < 0 ? 0 : c.x > 1 ? 1 : c.x;
-    double g = c.y < 0 ? 0 : c.y > 1 ? 1 : c.y;
-    double b = c.z < 0 ? 0 : c.z > 1 ? 1 : c.z;
-    int ir = (int) (255.999 * r);
-    int ig = (int) (255.999 * g);
-    int ib = (int) (255.999 * b);
+    const double r = c.x;
+    const double g = c.y;
+    const double b = c.z;
+
+    const interval t = (interval){0,0.999};
+    const int ir = (int) (256 * interval_clamp(t,r));
+    const int ig = (int) (256* interval_clamp(t,g));
+    const int ib = (int) (256 * interval_clamp(t,b));
 
     fprintf(f, "%d %d %d \n", ir,ig,ib);
 }
 
-static Color vec3_to_color(Vec3 v) {
+static Color vec3_to_color(const Vec3 v) {
     return (Color){v.x,v.y,v.z};
 }
 #endif //COLOR_H

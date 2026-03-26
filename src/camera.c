@@ -1,6 +1,8 @@
 #include "camera.h"
 #include <math.h>
 #include <stdio.h>
+#include <math.h>
+#include <stdlib.h>
 
 #define FOCAL_LENGTH 1
 #define VIEWPORT_HEIGHT 2
@@ -18,11 +20,32 @@ Color ray_color(const Ray r, const Surface *world) {
     return color_lerp(white, blue, a);
 }
 
-Camera camera_create(const int image_width, const double aspect_ratio) {
+Ray get_ray(const Camera *cam,int i, int j, int si, int sj) {
+    const Vec3 offset = {
+        (sj + rand() / (RAND_MAX + 1.0)) * cam->recip_sqrt_spp - 0.5,
+        (si + rand() / (RAND_MAX + 1.0)) * cam->recip_sqrt_spp - 0.5,
+            0
+    };
+    Vec3 pixel_sample = vec3_add(
+        cam->pixel00_loc,
+        vec3_add(vec3_scale(cam->pixel_delta_u, i + offset.x),
+        vec3_scale(cam->pixel_delta_v, j + offset.y)));
+
+    Vec3 ray_direction = vec3_subtract(pixel_sample, cam->camera_center);
+    return (Ray){cam->camera_center, ray_direction};
+}
+
+Camera camera_create(const int image_width, const double aspect_ratio, const int samples_per_pixel) {
     Camera cam;
     cam.image_width = image_width;
     cam.aspect_ratio = aspect_ratio;
     cam.camera_center = vec3(0,0,0);
+    cam.samples_per_pixel = samples_per_pixel;
+
+    cam.sqrt_spp = (int)sqrt(samples_per_pixel);
+    cam.recip_sqrt_spp = 1.0/cam.sqrt_spp;
+
+    cam.pixel_samples_scale = 1.0 / samples_per_pixel;
 
     cam.image_height = (int)(image_width/aspect_ratio);
     const double viewport_width = VIEWPORT_HEIGHT * (double)image_width / cam.image_height;
@@ -46,21 +69,17 @@ Camera camera_create(const int image_width, const double aspect_ratio) {
 void camera_render(const Camera *cam, const Surface *world, FILE *file) {
     fprintf(file, "P3\n%d %d\n255\n", cam->image_width, cam->image_height);
 
-    const Vec3 origin    = cam->camera_center;
-    const Vec3 p00       = cam->pixel00_loc;
-    const Vec3 delta_u   = cam->pixel_delta_u;
-    const Vec3 delta_v   = cam->pixel_delta_v;
-    const int  width     = cam->image_width;
-    const int  height    = cam->image_height;
+    for (int i = 0; i< cam->image_height; i++) {
+        for (int j = 0; j<cam->image_width; j++) {
+            Color pixel_color = color(0,0,0);
 
-    for (int i = 0; i< height; i++) {
-        for (int j = 0; j<width; j++) {
-            const Vec3 pixel_center = vec3_add(p00, vec3_add(vec3_scale(delta_u,j), vec3_scale(delta_v,i)));
-            const Vec3 ray_direction = vec3_subtract(pixel_center,origin);
-            const Ray r = ray(origin,ray_direction);
-
-            const Color c = ray_color(r, world);
-            write_color(file, c);
+            for (int si = 0; si < cam->sqrt_spp; si++) {
+                for (int sj = 0; sj < cam->sqrt_spp; sj++) {
+                    const Ray r = get_ray(cam, j, i, si, sj);
+                    pixel_color = color_add(pixel_color, ray_color(r, world));
+                }
+            }
+            write_color(file, color_scale(pixel_color, cam->pixel_samples_scale));
         }
     }
 }
