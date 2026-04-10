@@ -15,7 +15,7 @@ int main() {
     surface_list_add(&world, (Surface *)&s1);
     surface_list_add(&world, (Surface *)&s2);
 
-    const Camera cam = camera_create(1000,16.0/9.0,100);
+    const Camera cam = camera_create(1000,16.0/9.0,100,50);
 
     FILE *file = fopen("image.ppm", "w");
     if (!file) {

@@ -1,5 +1,6 @@
 #ifndef RAYTRACER_INTERVAL_H
 #define RAYTRACER_INTERVAL_H
+#include <stdbool.h>
 
 typedef struct interval {
     double min;

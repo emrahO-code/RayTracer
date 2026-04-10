@@ -1,22 +1,26 @@
 #include "camera.h"
 #include <math.h>
 #include <stdio.h>
-#include <math.h>
 #include <stdlib.h>
 
 #define FOCAL_LENGTH 1
 #define VIEWPORT_HEIGHT 2
 
-Color ray_color(const Ray r, const Surface *world) {
+
+Color ray_color(const Ray r, const Surface *world, const int depth) {
+    if (depth <=0 ) {
+        return (Color){0,0,0};
+    }
     surface_record rec;
-    if (world->hit(world,r,(interval){0,INFINITY}, &rec)) {
-        return color_scale(color_add(vec3_to_color(rec.normal), color(1,1,1)),0.5 );
+    if (world->hit(world,r,(interval){0.001,INFINITY}, &rec)) {
+        Vec3 direction = vec3_add(rec.normal, vec3_random_unit_vector());
+        return color_scale(ray_color(ray(rec.p, direction), world, depth - 1), 0.5);
     }
 
     const Vec3 unit_direction = vec3_normalize(r.direction);
     const double a = 0.5 * (unit_direction.y +1.0);
-    const Color white = color(1, 1, 1);
-    const Color blue = color(0.5, 0.7, 1.0);
+    const Color white = color(1.0, 1.0, 1.0);
+    const Color blue = color(0.1, 0.5, 1.0);
     return color_lerp(white, blue, a);
 }
 
@@ -35,12 +39,13 @@ Ray get_ray(const Camera *cam,int i, int j, int si, int sj) {
     return (Ray){cam->camera_center, ray_direction};
 }
 
-Camera camera_create(const int image_width, const double aspect_ratio, const int samples_per_pixel) {
+Camera camera_create(const int image_width, const double aspect_ratio, const int samples_per_pixel, const int max_depth) {
     Camera cam;
     cam.image_width = image_width;
     cam.aspect_ratio = aspect_ratio;
     cam.camera_center = vec3(0,0,0);
     cam.samples_per_pixel = samples_per_pixel;
+    cam.max_depth = max_depth;
 
     cam.sqrt_spp = (int)sqrt(samples_per_pixel);
     cam.recip_sqrt_spp = 1.0/cam.sqrt_spp;
@@ -76,7 +81,7 @@ void camera_render(const Camera *cam, const Surface *world, FILE *file) {
             for (int si = 0; si < cam->sqrt_spp; si++) {
                 for (int sj = 0; sj < cam->sqrt_spp; sj++) {
                     const Ray r = get_ray(cam, j, i, si, sj);
-                    pixel_color = color_add(pixel_color, ray_color(r, world));
+                    pixel_color = color_add(pixel_color, ray_color(r, world, cam->max_depth));
                 }
             }
             write_color(file, color_scale(pixel_color, cam->pixel_samples_scale));

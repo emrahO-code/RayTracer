@@ -1,7 +1,7 @@
 #include "sphere.h"
 #include "math.h"
 
-bool sphere_hit(const Surface *self, const Ray r, interval t, surface_record *rec) {
+bool sphere_hit(const Surface *self, const Ray r, const interval t,  surface_record *rec) {
     const Sphere *s = (const Sphere *) self;
     const Vec3 oc = vec3_subtract(s->center, r.origin);
     const double a = vec3_length_sq(r.direction);
@@ -22,13 +22,13 @@ bool sphere_hit(const Surface *self, const Ray r, interval t, surface_record *re
 
     rec->t = root;
     rec->p = ray_at(r,root);
-    Vec3 outward_normal = vec3_scale(vec3_add(ray_at(r,root),s->center),1/s->radius);
+    const Vec3 outward_normal = vec3_scale(vec3_subtract(ray_at(r,root),s->center),1.0/s->radius);
     hit_record_set_face_normal(rec, r, outward_normal);
 
     return true;
 }
 
-Sphere sphere_create(Vec3 center, double radius) {
+Sphere sphere_create(const Vec3 center, const double radius) {
     Sphere s;
     s.base.hit = sphere_hit;
     s.center = center;

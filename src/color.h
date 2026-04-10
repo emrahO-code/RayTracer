@@ -34,9 +34,9 @@ static Color color_lerp(const Color a, const Color b, const double c) {
 }
 
 static void write_color(FILE* f, const Color c) {
-    const double r = c.x;
-    const double g = c.y;
-    const double b = c.z;
+    const double r = sqrt(c.x < 0 ? 0 : c.x);  // gamma 2 correction
+    const double g = sqrt(c.y < 0 ? 0 : c.y);
+    const double b = sqrt(c.z < 0 ? 0 : c.z);
 
     const interval t = (interval){0,0.999};
     const int ir = (int) (256 * interval_clamp(t,r));

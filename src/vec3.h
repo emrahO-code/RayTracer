@@ -2,6 +2,9 @@
 #define VEC3_H
 
 #include <math.h>
+#include <stdlib.h>
+
+#include "interval.h"
 
 typedef struct {
     double x,y,z;
@@ -49,4 +52,35 @@ static Vec3 vec3_normalize(const Vec3 a) {
     return vec3_scale(a, 1.0/vec3_length(a));
 }
 
-#endif //VEC3_H
+//Random-based helper functions
+
+static Vec3 vec3_random() {
+    return (Vec3){rand()/(RAND_MAX+1.0),rand()/(RAND_MAX+1.0),rand()/(RAND_MAX+1.0)};
+}
+
+static Vec3 vec3_random_interval(interval Int) {
+    return vec3_add( (Vec3) {Int.min,Int.min,Int.min} ,vec3_scale(vec3_random(),(Int.max -Int.min )));
+}
+
+static Vec3 vec3_random_unit_vector() {
+    for (;;) {
+        const Vec3 a = vec3_random_interval((interval) {-1,1});
+        const double a_dot = vec3_length_sq(a);
+        if (1e-160 < a_dot && a_dot <= 1) {
+            return vec3_scale(a, 1/a_dot);
+        }
+    }
+}
+
+//Diffuse-helper functions
+static Vec3 vec3_random_on_hemisphere(const Vec3 normal) {
+    Vec3 on_unit_sphere = vec3_random_unit_vector();
+    if (vec3_dot(on_unit_sphere, normal) > 0.0) {
+        return on_unit_sphere;
+    }
+    return vec3_scale(on_unit_sphere, -1);
+}
+
+
+
+#endif

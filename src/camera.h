@@ -11,6 +11,7 @@ typedef struct Camera {
     int samples_per_pixel;
     int sqrt_spp;
     double recip_sqrt_spp;
+    int max_depth;
 
     Vec3 camera_center;
     int image_height;
@@ -20,7 +21,7 @@ typedef struct Camera {
     double pixel_samples_scale;
 }Camera;
 
-Camera camera_create(int image_width, double aspect_ratio, int samples_per_pixel);
+Camera camera_create(int image_width, double aspect_ratio, int samples_per_pixel, int max_depth);
 void camera_render(const Camera *cam, const Surface *world, FILE *file);
 
 
