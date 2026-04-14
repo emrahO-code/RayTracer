@@ -4,6 +4,10 @@
 #include "ray.h"
 #include "color.h"
 #include "vec3.h"
+#include <pthread.h>
+
+#define TILE_SIZE 32
+#define NUM_THREADS 8
 
 typedef struct Camera {
     double aspect_ratio;
@@ -20,6 +24,15 @@ typedef struct Camera {
     Vec3 pixel_delta_v;
     double pixel_samples_scale;
 }Camera;
+
+typedef struct {
+    const Camera *cam;
+    const Surface *world;
+    Color *buffer;
+    _Atomic int *next_tile;
+    int tiles_x;
+    int tiles_y;
+} ThreadArgs;
 
 Camera camera_create(int image_width, double aspect_ratio, int samples_per_pixel, int max_depth);
 void camera_render(const Camera *cam, const Surface *world, FILE *file);

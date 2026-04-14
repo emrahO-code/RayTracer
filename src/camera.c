@@ -1,33 +1,42 @@
 #include "camera.h"
 #include <math.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "surface_record.h"
+#include "material.h"
 
 #define FOCAL_LENGTH 1
 #define VIEWPORT_HEIGHT 2
 
 
-Color ray_color(const Ray r, const Surface *world, const int depth) {
+Color ray_color(const Ray r, const Surface *world, const int depth, unsigned int *seed) {
     if (depth <=0 ) {
         return (Color){0,0,0};
     }
     surface_record rec;
     if (world->hit(world,r,(interval){0.001,INFINITY}, &rec)) {
-        Vec3 direction = vec3_add(rec.normal, vec3_random_unit_vector());
-        return color_scale(ray_color(ray(rec.p, direction), world, depth - 1), 0.5);
+        Ray scattered;
+        Color attenuation;
+        if (rec.mat->scatter(rec.mat, r, &rec, &attenuation, &scattered, seed)) {
+            const Color bounced = ray_color(scattered, world, depth - 1, seed);
+            // Modulate: attenuation * bounced (component-wise multiply)
+            return color(attenuation.x * bounced.x,
+                         attenuation.y * bounced.y,
+                         attenuation.z * bounced.z);
+        }
+        return color(0, 0, 0);
     }
 
-    const Vec3 unit_direction = vec3_normalize(r.direction);
-    const double a = 0.5 * (unit_direction.y +1.0);
-    const Color white = color(1.0, 1.0, 1.0);
-    const Color blue = color(0.1, 0.5, 1.0);
-    return color_lerp(white, blue, a);
+    const Vec3 unit = vec3_normalize(r.direction);
+    const double a = 0.5 * (unit.y + 1.0);
+    return color_lerp(color(1, 1, 1), color(0.1, 0.5, 1.0), a);
 }
 
-Ray get_ray(const Camera *cam,int i, int j, int si, int sj) {
+Ray get_ray(const Camera *cam,int i, int j, int si, int sj, unsigned int *seed) {
     const Vec3 offset = {
-        (sj + rand() / (RAND_MAX + 1.0)) * cam->recip_sqrt_spp - 0.5,
-        (si + rand() / (RAND_MAX + 1.0)) * cam->recip_sqrt_spp - 0.5,
+        (sj + rand_r(seed) / (RAND_MAX + 1.0)) * cam->recip_sqrt_spp - 0.5,
+        (si + rand_r(seed) / (RAND_MAX + 1.0)) * cam->recip_sqrt_spp - 0.5,
             0
     };
     Vec3 pixel_sample = vec3_add(
@@ -71,20 +80,73 @@ Camera camera_create(const int image_width, const double aspect_ratio, const int
     return cam;
 }
 
-void camera_render(const Camera *cam, const Surface *world, FILE *file) {
-    fprintf(file, "P3\n%d %d\n255\n", cam->image_width, cam->image_height);
+void *render_tiles(void *arg) {
+    ThreadArgs *a = (ThreadArgs *)arg;
+    const Camera *cam = a->cam;
+    const int total_tiles = a->tiles_x * a->tiles_y;
 
-    for (int i = 0; i< cam->image_height; i++) {
-        for (int j = 0; j<cam->image_width; j++) {
-            Color pixel_color = color(0,0,0);
+    unsigned int seed = arc4random();
 
-            for (int si = 0; si < cam->sqrt_spp; si++) {
-                for (int sj = 0; sj < cam->sqrt_spp; sj++) {
-                    const Ray r = get_ray(cam, j, i, si, sj);
-                    pixel_color = color_add(pixel_color, ray_color(r, world, cam->max_depth));
+    int tile_idx;
+    while ((tile_idx = atomic_fetch_add(a->next_tile,1)) < total_tiles) {
+        const int tile_x = tile_idx % a->tiles_x;
+        const int tile_y = tile_idx / a->tiles_x;
+
+        const int x_start = tile_x * TILE_SIZE;
+        const int y_start = tile_y * TILE_SIZE;
+        const int x_end = x_start + TILE_SIZE < cam->image_width  ? x_start + TILE_SIZE : cam->image_width;
+        const int y_end = y_start + TILE_SIZE < cam->image_height ? y_start + TILE_SIZE : cam->image_height;
+
+        for (int i = y_start; i<y_end; i++) {
+            for (int j = x_start; j<x_end; j++) {
+                Color pixel_color = color(0,0,0);
+
+                for (int si = 0; si < cam->sqrt_spp; si++) {
+                    for (int sj = 0; sj < cam->sqrt_spp; sj++) {
+                        const Ray r = get_ray(cam, j, i, si, sj, &seed);
+                        pixel_color = color_add(pixel_color, ray_color(r, a->world, cam->max_depth, &seed));
+                    }
                 }
+
+                a->buffer[i * cam->image_width + j] = color_scale(pixel_color, cam->pixel_samples_scale);
             }
-            write_color(file, color_scale(pixel_color, cam->pixel_samples_scale));
         }
     }
+    return 0;
+}
+
+void camera_render(const Camera *cam, const Surface *world, FILE *file) {
+    Color *buffer = malloc(cam->image_height * cam->image_width *sizeof(Color));
+
+    const int tiles_x = (cam->image_width  + TILE_SIZE - 1) / TILE_SIZE;
+    const int tiles_y = (cam->image_height + TILE_SIZE - 1) / TILE_SIZE;
+
+    _Atomic int next_tile = 0;
+
+    ThreadArgs args[NUM_THREADS];
+    pthread_t threads[NUM_THREADS];
+
+    for (int i =0; i < NUM_THREADS; i++) {
+        args[i] = (ThreadArgs){
+            .cam = cam,
+            .world = world,
+            .buffer = buffer,
+            .tiles_x = tiles_x,
+            .tiles_y = tiles_y,
+            .next_tile = &next_tile,
+        };
+        pthread_create(&threads[i], 0, render_tiles, &args[i]);
+    }
+
+    for (int i = 0; i< NUM_THREADS; i++) {
+        pthread_join(threads[i], NULL);
+    }
+
+    fprintf(file, "P3\n%d %d\n255\n", cam->image_width, cam->image_height);
+
+    for (int i= 0; i<cam->image_height * cam->image_width; i++) {
+        write_color(file, buffer[i]);
+    }
+
+    free(buffer);
 }

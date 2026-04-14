@@ -5,12 +5,15 @@
 #include "vec3.h"
 #include "ray.h"
 
+typedef struct Material Material;
+
 typedef struct {
     Vec3 p;
     Vec3 normal;
     double t;
     bool front_face;
-}surface_record;
+    const Material *mat;
+} surface_record;
 
 
 static void hit_record_set_face_normal(surface_record *rec, Ray r, Vec3 outward_normal){

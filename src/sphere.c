@@ -22,16 +22,18 @@ bool sphere_hit(const Surface *self, const Ray r, const interval t,  surface_rec
 
     rec->t = root;
     rec->p = ray_at(r,root);
+    rec->mat = s->mat;
     const Vec3 outward_normal = vec3_scale(vec3_subtract(ray_at(r,root),s->center),1.0/s->radius);
     hit_record_set_face_normal(rec, r, outward_normal);
 
     return true;
 }
 
-Sphere sphere_create(const Vec3 center, const double radius) {
+Sphere sphere_create(const Vec3 center, const double radius, const Material *mat) {
     Sphere s;
     s.base.hit = sphere_hit;
     s.center = center;
     s.radius = radius;
+    s.mat = mat;
     return s;
 }
