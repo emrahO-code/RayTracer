@@ -18,5 +18,21 @@ typedef struct {
 
 Lambertian lambertian_create(Color albedo);
 
+typedef struct {
+    Material base;
+    Color albedo;
+    double fuzz;
+} Metal;
+
+Metal metal_create(Color albedo, double fuzz);
+
+typedef struct {
+    Material base;
+    double refraction_index;
+    Color albedo;
+} Dielectric;
+
+Dielectric dielectric_create(Color albedo, double refraction_index);
+
 
 #endif

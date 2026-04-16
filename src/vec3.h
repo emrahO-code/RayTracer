@@ -72,7 +72,7 @@ static Vec3 vec3_random_unit_vector(unsigned int *seed) {
     }
 }
 
-//Diffuse-helper functions
+//Material-helper functions
 static Vec3 vec3_random_on_hemisphere(const Vec3 normal, unsigned int *seed) {
     const Vec3 on_unit_sphere = vec3_random_unit_vector(seed);
     if (vec3_dot(on_unit_sphere, normal) > 0.0) {
@@ -81,12 +81,24 @@ static Vec3 vec3_random_on_hemisphere(const Vec3 normal, unsigned int *seed) {
     return vec3_scale(on_unit_sphere, -1);
 }
 
+static Vec3 vec3_reflect(const Vec3 v, const Vec3 normal) {
+    return vec3_subtract(v, vec3_scale(normal, 2 * vec3_dot(v,normal)));
+}
+
+static Vec3 vec3_refract(const Vec3 v, const Vec3 normal, double etai_over_etat) {
+    const double cos_theta = fmin(vec3_dot(vec3_negate(v),normal), 1.0);
+    const Vec3 r_out_perp = vec3_scale(vec3_add(v, vec3_scale(normal, cos_theta)),etai_over_etat);
+    const Vec3 r_out_para = vec3_scale(normal, -sqrt(fabs(1.0 - vec3_length_sq(r_out_perp))));
+    return vec3_add(r_out_para, r_out_perp);
+}
+
 //Near-Zero functionality
 
 static bool vec3_near_zero(const Vec3 v) {
     const double s = 1e-8;
     return (fabs(v.x) < s && fabs(v.y)<s && fabs(v.z)<s);
 }
+
 
 
 

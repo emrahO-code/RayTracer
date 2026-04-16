@@ -20,7 +20,6 @@ Color ray_color(const Ray r, const Surface *world, const int depth, unsigned int
         Color attenuation;
         if (rec.mat->scatter(rec.mat, r, &rec, &attenuation, &scattered, seed)) {
             const Color bounced = ray_color(scattered, world, depth - 1, seed);
-            // Modulate: attenuation * bounced (component-wise multiply)
             return color(attenuation.x * bounced.x,
                          attenuation.y * bounced.y,
                          attenuation.z * bounced.z);
