@@ -7,7 +7,6 @@
 #include "material.h"
 
 #define FOCAL_LENGTH 1
-#define VIEWPORT_HEIGHT 2
 
 
 Color ray_color(const Ray r, const Surface *world, const int depth, unsigned int *seed) {
@@ -47,26 +46,30 @@ Ray get_ray(const Camera *cam,int i, int j, int si, int sj, unsigned int *seed) 
     return (Ray){cam->camera_center, ray_direction};
 }
 
-Camera camera_create(const int image_width, const double aspect_ratio, const int samples_per_pixel, const int max_depth) {
+Camera _camera_create(const CameraConfig cfg) {
     Camera cam;
-    cam.image_width = image_width;
-    cam.aspect_ratio = aspect_ratio;
+    cam.image_width = cfg.image_width;
+    cam.aspect_ratio = cfg.aspect_ratio;
     cam.camera_center = vec3(0,0,0);
-    cam.samples_per_pixel = samples_per_pixel;
-    cam.max_depth = max_depth;
+    cam.samples_per_pixel = cfg.samples_per_pixel;
+    cam.max_depth = cfg.max_depth;
+    cam.vfov = cfg.vfov;
 
-    cam.sqrt_spp = (int)sqrt(samples_per_pixel);
+    cam.sqrt_spp = (int)sqrt(cfg.samples_per_pixel);
     cam.recip_sqrt_spp = 1.0/cam.sqrt_spp;
 
-    cam.pixel_samples_scale = 1.0 / samples_per_pixel;
+    cam.pixel_samples_scale = 1.0 / cfg.samples_per_pixel;
 
-    cam.image_height = (int)(image_width/aspect_ratio);
-    const double viewport_width = VIEWPORT_HEIGHT * (double)image_width / cam.image_height;
+    cam.image_height = (int)(cfg.image_width/cfg.aspect_ratio);
+    const double theta  = M_PI * cfg.vfov/180;
+    const double h = tan(theta/2);
+    const double viewport_height = 2*h*FOCAL_LENGTH;
+    const double viewport_width = viewport_height * (double)cfg.image_width / cam.image_height;
 
     const Vec3 viewport_u = vec3(viewport_width,0,0);
-    const Vec3 viewport_v = vec3(0, -VIEWPORT_HEIGHT,0);
+    const Vec3 viewport_v = vec3(0, -viewport_height,0);
 
-    cam.pixel_delta_u = vec3_scale(viewport_u, 1.0/image_width);
+    cam.pixel_delta_u = vec3_scale(viewport_u, 1.0/cfg.image_width);
     cam.pixel_delta_v = vec3_scale(viewport_v, 1.0/cam.image_height);
 
     const Vec3 viewport_upper_left = vec3_subtract(
@@ -80,7 +83,7 @@ Camera camera_create(const int image_width, const double aspect_ratio, const int
 }
 
 void *render_tiles(void *arg) {
-    ThreadArgs *a = (ThreadArgs *)arg;
+    const ThreadArgs *a = (ThreadArgs *)arg;
     const Camera *cam = a->cam;
     const int total_tiles = a->tiles_x * a->tiles_y;
 
