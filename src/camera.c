@@ -5,8 +5,7 @@
 #include <stdlib.h>
 #include "surface_record.h"
 #include "material.h"
-
-#define FOCAL_LENGTH 1
+#include "png.h"
 
 
 Color ray_color(const Ray r, const Surface *world, const int depth, unsigned int *seed) {
@@ -31,6 +30,12 @@ Color ray_color(const Ray r, const Surface *world, const int depth, unsigned int
     return color_lerp(color(1, 1, 1), color(0.1, 0.5, 1.0), a);
 }
 
+Vec3 defocus_disk_sample(const Camera *cam, unsigned int *seed) {
+    const Vec3 a = vec3_random_unit_disk_vector(seed);
+    return vec3_add(cam->camera_center, vec3_add(vec3_scale(cam->defocus_disk_u, a.x), vec3_scale(cam->defocus_disk_v, a.y)));
+
+}
+
 Ray get_ray(const Camera *cam,int i, int j, int si, int sj, unsigned int *seed) {
     const Vec3 offset = {
         (sj + rand_r(seed) / (RAND_MAX + 1.0)) * cam->recip_sqrt_spp - 0.5,
@@ -43,42 +48,51 @@ Ray get_ray(const Camera *cam,int i, int j, int si, int sj, unsigned int *seed) 
         vec3_scale(cam->pixel_delta_v, j + offset.y)));
 
     Vec3 ray_direction = vec3_subtract(pixel_sample, cam->camera_center);
-    return (Ray){cam->camera_center, ray_direction};
+    Vec3 ray_origin = (cam->defocus_angle <=0) ? cam->camera_center : defocus_disk_sample(cam,seed);
+    return (Ray){ray_origin, ray_direction};
 }
 
 Camera _camera_create(const CameraConfig cfg) {
     Camera cam;
     cam.image_width = cfg.image_width;
     cam.aspect_ratio = cfg.aspect_ratio;
-    cam.camera_center = vec3(0,0,0);
+    cam.camera_center = cfg.lookfrom;
     cam.samples_per_pixel = cfg.samples_per_pixel;
     cam.max_depth = cfg.max_depth;
     cam.vfov = cfg.vfov;
+    cam.defocus_angle = cfg.defocus_angle;
+    cam.focus_dist = cfg.focus_dist;
 
     cam.sqrt_spp = (int)sqrt(cfg.samples_per_pixel);
     cam.recip_sqrt_spp = 1.0/cam.sqrt_spp;
+
+    cam.w = vec3_normalize(vec3_subtract(cfg.lookfrom, cfg.lookat));
+    cam.u = vec3_normalize(vec3_cross(cfg.vup,cam.w));
+    cam.v = vec3_cross(cam.w,cam.u);
 
     cam.pixel_samples_scale = 1.0 / cfg.samples_per_pixel;
 
     cam.image_height = (int)(cfg.image_width/cfg.aspect_ratio);
     const double theta  = M_PI * cfg.vfov/180;
     const double h = tan(theta/2);
-    const double viewport_height = 2*h*FOCAL_LENGTH;
+    const double viewport_height = 2*h*cam.focus_dist;
     const double viewport_width = viewport_height * (double)cfg.image_width / cam.image_height;
 
-    const Vec3 viewport_u = vec3(viewport_width,0,0);
-    const Vec3 viewport_v = vec3(0, -viewport_height,0);
+    const Vec3 viewport_u = vec3_scale(cam.u,viewport_width);
+    const Vec3 viewport_v = vec3_scale(cam.v, -viewport_height);
 
     cam.pixel_delta_u = vec3_scale(viewport_u, 1.0/cfg.image_width);
     cam.pixel_delta_v = vec3_scale(viewport_v, 1.0/cam.image_height);
 
     const Vec3 viewport_upper_left = vec3_subtract(
-        vec3_subtract(cam.camera_center, vec3(0, 0, FOCAL_LENGTH)),
+        vec3_subtract(cam.camera_center, vec3_scale(cam.w,cam.focus_dist)),
         vec3_scale(vec3_add(viewport_u, viewport_v), 0.5)
     );
 
     cam.pixel00_loc = vec3_add(viewport_upper_left, vec3_scale(vec3_add(cam.pixel_delta_u,cam.pixel_delta_v),0.5));
-
+    double defocus_radius = cam.focus_dist * tan(M_PI*cam.defocus_angle/360);
+    cam.defocus_disk_u = vec3_scale(cam.u,defocus_radius);
+    cam.defocus_disk_v = vec3_scale(cam.v,defocus_radius);
     return cam;
 }
 
@@ -144,11 +158,7 @@ void camera_render(const Camera *cam, const Surface *world, FILE *file) {
         pthread_join(threads[i], NULL);
     }
 
-    fprintf(file, "P3\n%d %d\n255\n", cam->image_width, cam->image_height);
-
-    for (int i= 0; i<cam->image_height * cam->image_width; i++) {
-        write_color(file, buffer[i]);
-    }
+    write_png(file, buffer, cam->image_width, cam->image_height);
 
     free(buffer);
 }

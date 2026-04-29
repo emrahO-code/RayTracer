@@ -30,7 +30,7 @@ static bool metal_scatter(const Material *self, Ray r_in, const surface_record *
     reflected = vec3_add(vec3_normalize(reflected), vec3_scale(vec3_random_unit_vector(seed), met->fuzz));
     *scattered = ray(rec->p, reflected);
     *attenuation = met->albedo;
-    return true;
+    return vec3_dot(reflected, rec->normal) > 0;
 }
 
 Metal metal_create(const Color albedo, const double fuzz) {

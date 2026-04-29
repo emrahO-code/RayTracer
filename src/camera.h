@@ -15,6 +15,11 @@ typedef struct {
     int    samples_per_pixel;
     int    max_depth;
     double vfov;
+    Vec3 lookfrom;
+    Vec3 lookat;
+    Vec3 vup;
+    double defocus_angle;
+    double focus_dist;
 } CameraConfig;
 
 typedef struct  {
@@ -25,7 +30,12 @@ typedef struct  {
     double recip_sqrt_spp;
     int max_depth;
     double vfov;
+    double defocus_angle;
+    double focus_dist;
 
+    Vec3 defocus_disk_u;
+    Vec3 defocus_disk_v;
+    Vec3 u,v,w;
     Vec3 camera_center;
     int image_height;
     Vec3 pixel00_loc;
@@ -47,10 +57,15 @@ Camera _camera_create(CameraConfig cfg);
 
 #define camera_create(...) _camera_create((CameraConfig){   \
 .image_width       = 400,                               \
-.aspect_ratio      = 16.0 / 9.0,                       \
+.aspect_ratio      = 16.0 / 9.0,                        \
 .samples_per_pixel = 100,                               \
-.max_depth         = 50,                                \
+.max_depth         = 10,                                \
 .vfov              = 90.0,                              \
+.lookfrom          = {0,0,0},                           \
+.lookat            = {0,0,-1},                          \
+.vup               = {0,1,0},                           \
+.defocus_angle     = 0,                                 \
+.focus_dist        = 10,                                \
 __VA_ARGS__                                             \
 })
 

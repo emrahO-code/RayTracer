@@ -81,6 +81,15 @@ static Vec3 vec3_random_on_hemisphere(const Vec3 normal, unsigned int *seed) {
     return vec3_scale(on_unit_sphere, -1);
 }
 
+static Vec3 vec3_random_unit_disk_vector(unsigned int *seed) {
+    for (;;) {
+        const Vec3 a = vec3(rand_r(seed) / (RAND_MAX + 1.0) * 2.0 - 1.0,rand_r(seed) / (RAND_MAX + 1.0) * 2.0 - 1.0,0.0);
+        if (vec3_length_sq(a) <1) {
+            return a;
+        }
+    }
+}
+
 static Vec3 vec3_reflect(const Vec3 v, const Vec3 normal) {
     return vec3_subtract(v, vec3_scale(normal, 2 * vec3_dot(v,normal)));
 }
